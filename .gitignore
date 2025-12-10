@@ -1,0 +1,52 @@
+# Secrets and sensitive data
+secrets/*
+!secrets/*.example
+!secrets/*.md
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform-apply-trigger
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-workspace
+
+# OS files
+Thumbs.db
+*.log
+
+# Node modules (if applicable)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Kubernetes secrets
+k8s-manifests/secrets/
+*.secret.yaml
+*.secret.yml
+
+# Backups
+*.backup
+*.bak
