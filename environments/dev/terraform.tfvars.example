@@ -1,0 +1,42 @@
+# environments/dev/terraform.tfvars.example
+# ⚠️ NEVER commit terraform.tfvars to git!
+
+# AWS Configuration
+aws_region   = "eu-north-1"
+project_name = "space2study"
+
+# Domain Configuration
+domain_name = "space2study.pp.ua"
+
+# Cloudflare Configuration
+cloudflare_api_token = "cloudflare-api-token-here"
+
+# Network Configuration
+vpc_cidr             = "10.0.0.0/16"
+availability_zones   = ["eu-north-1a", "eu-north-1b"]
+public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = []
+
+# Security Configuration
+admin_cidr_blocks = []  # Example: ["1.2.3.4/32"]
+
+# SSH Key Name
+key_name = "space2study-aws.pem"
+
+# Feature Flags
+enable_nat_gateway   = false
+create_api_record    = false  
+enable_rate_limiting = false  
+
+# Vault Auto Unseadl
+kms_key_id = "kms-key-id-here"
+
+# MongoDB Atlas Configuration
+mongodb_atlas_organization_id = "mongodb-atlas-organization-id-here"
+mongodb_atlas_public_key      = "public-key"  
+mongodb_atlas_private_key     = "private-key"  
+
+# MongoDB Cluster Configuration
+mongodb_cluster_name        = "cluster-name"
+mongodb_admin_username      = "admin"
+mongodb_admin_password      = "changeme123" 

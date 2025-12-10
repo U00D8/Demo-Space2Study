@@ -1,0 +1,182 @@
+# Prometheus Operator Configuration
+prometheusOperator:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# Prometheus Configuration
+prometheus:
+  enabled: true
+
+  prometheusSpec:
+    # Resource limits for small cluster
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+
+    # Persistent storage configuration
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: monitoring-sc
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+          selector:
+            matchLabels:
+              component: monitoring
+
+    # Retention configuration
+    retention: 15d
+    retentionSize: "4GB"
+
+    # External scrape configurations for EC2 instances
+    additionalScrapeConfigs:
+      - job_name: 'jenkins-application'
+        static_configs:
+          - targets: ['jenkins.internal.space2study.pp.ua:8080']
+        metrics_path: '/prometheus/'
+        scrape_interval: 30s
+        scrape_timeout: 10s
+
+      - job_name: 'jenkins-node-exporter'
+        static_configs:
+          - targets: ['jenkins.internal.space2study.pp.ua:9100']
+        scrape_interval: 30s
+        scrape_timeout: 10s
+
+      - job_name: 'vault-metrics'
+        static_configs:
+          - targets: ['vault.internal.space2study.pp.ua:8200']
+        metrics_path: '/v1/sys/metrics'
+        params:
+          format: ['prometheus']
+        scrape_interval: 30s
+        scrape_timeout: 10s
+
+      - job_name: 'vault-node-exporter'
+        static_configs:
+          - targets: ['vault.internal.space2study.pp.ua:9100']
+        scrape_interval: 30s
+        scrape_timeout: 10s
+
+    # Service monitors for in-cluster components
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelector: {}
+
+# Alertmanager Configuration (no notifications)
+alertmanager:
+  enabled: true
+
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 12h
+      receiver: 'null'
+    receivers:
+      - name: 'null'
+
+# Grafana Configuration
+grafana:
+  enabled: true
+
+  # Admin credentials
+  adminPassword: "changeme123"  # CHANGE THIS IN PRODUCTION
+
+  # Resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # Persistence for dashboards/datasources (shared with Prometheus and Loki)
+  persistence:
+    enabled: false
+
+  # Service type (internal only)
+  service:
+    type: ClusterIP
+    port: 80
+
+  # Disable ALL provisioning to prevent datasource conflicts
+  # We will add datasources manually through the Grafana UI
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources: []
+
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers: []
+
+  dashboards: {}
+
+  # Disable sidecars that reload datasources/dashboards (they cause conflicts)
+  sidecar:
+    dashboards:
+      enabled: false
+    datasources:
+      enabled: false
+
+# Node Exporter (for K3s nodes)
+nodeExporter:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# Kube State Metrics
+kubeStateMetrics:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# Disable components not needed
+kubeApiServer:
+  enabled: true
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false

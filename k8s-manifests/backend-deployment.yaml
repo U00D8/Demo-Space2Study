@@ -1,0 +1,184 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: space2study
+  labels:
+    app: backend
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+      annotations:
+        prometheus.io/scrape: "false"
+    spec:
+      # Prefer worker nodes 
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: DoesNotExist
+      
+      # Use node name to spread across workers
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: backend
+      
+      containers:
+      - name: backend
+        # Replaced with actual ECR image
+        image: ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/space2study-backend:latest
+        imagePullPolicy: IfNotPresent
+        
+        ports:
+        - name: http
+          containerPort: 5000
+          protocol: TCP
+        
+        # Environment variables from secret (all backend env vars)
+        envFrom:
+        - secretRef:
+            name: backend-secrets
+        
+        # Resource requests and limits
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        
+        # Liveness probe - restart if unhealthy
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness probe - remove from load balancer if not ready
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 2
+        
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000  # non-root user
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        
+        # Volume mounts for temp files
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      
+      # Init container to verify secrets are available
+      initContainers:
+      - name: check-secrets
+        image: busybox:1.28
+        command: ['sh', '-c', 'echo "Backend secrets loaded: SERVER_PORT=$SERVER_PORT, MONGODB_URL available=$(test -n "$MONGODB_URL" && echo yes || echo no)"']
+        envFrom:
+        - secretRef:
+            name: backend-secrets
+      
+      # Pod security and scheduling
+      securityContext:
+        fsGroup: 1000
+      
+      # Service account
+      serviceAccountName: backend
+      
+      # ECR pull credentials
+      imagePullSecrets:
+      - name: ecr-secret
+      
+      # Volumes
+      volumes:
+      - name: tmp
+        emptyDir: {}
+
+---
+# Backend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: space2study
+  labels:
+    app: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+  - name: http
+    port: 5000
+    targetPort: http
+    protocol: TCP
+
+---
+# ServiceAccount for backend
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backend
+  namespace: space2study
+
+---
+# Role for backend (minimal permissions)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backend
+  namespace: space2study
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backend
+  namespace: space2study
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backend
+subjects:
+- kind: ServiceAccount
+  name: backend
+  namespace: space2study

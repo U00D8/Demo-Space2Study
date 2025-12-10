@@ -1,0 +1,138 @@
+# Loki Configuration
+loki:
+  enabled: true
+
+  # Persistence configuration (shared with Prometheus)
+  persistence:
+    enabled: true
+    storageClassName: monitoring-sc
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+    selector:
+      matchLabels:
+        component: monitoring
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Loki configuration
+  config:
+    auth_enabled: false
+
+    ingester:
+      chunk_idle_period: 3m
+      chunk_block_size: 262144
+      chunk_retain_period: 1m
+      max_transfer_retries: 0
+      lifecycler:
+        ring:
+          kvstore:
+            store: inmemory
+          replication_factor: 1
+
+    limits_config:
+      enforce_metric_name: false
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+      retention_period: 168h  # 7 days retention
+
+    schema_config:
+      configs:
+        - from: 2020-10-24
+          store: boltdb-shipper
+          object_store: filesystem
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+
+    server:
+      http_listen_port: 3100
+
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /data/loki/boltdb-shipper-active
+        cache_location: /data/loki/boltdb-shipper-cache
+        cache_ttl: 24h
+        shared_store: filesystem
+      filesystem:
+        directory: /data/loki/chunks
+
+    chunk_store_config:
+      max_look_back_period: 168h  # 7 days
+
+    table_manager:
+      retention_deletes_enabled: true
+      retention_period: 168h  # 7 days
+
+# Promtail Configuration (log collector)
+promtail:
+  enabled: true
+
+  # Deploy as DaemonSet on all K3s nodes
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+  config:
+    logLevel: info
+    serverPort: 3101
+
+    clients:
+      - url: http://loki:3100/loki/api/v1/push
+
+    positions:
+      filename: /tmp/positions.yaml
+
+    scrape_configs:
+      # Collect logs from all Kubernetes pods
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+
+        relabel_configs:
+          # Add namespace label
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+
+          # Add pod name label
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+          # Add container name label
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
+
+          # Add node name label
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: node
+
+          # Drop logs from monitoring namespace (avoid log loop)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: drop
+            regex: monitoring
+
+# Disable Grafana (already deployed via kube-prometheus-stack)
+grafana:
+  enabled: false
+
+# Disable additional components
+filebeat:
+  enabled: false
+
+logstash:
+  enabled: false
+
+fluent-bit:
+  enabled: false
