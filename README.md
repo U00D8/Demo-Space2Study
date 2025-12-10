@@ -96,7 +96,7 @@ This project showcases a **real-world, production-ready infrastructure** designe
 - **Persistent Storage:** EBS volumes for Prometheus, Grafana, Loki data with automated snapshots
 - **Container Registry:** AWS ECR with vulnerability scanning on image push
 
-See [Architecture Deep Dive](#architecture-deep-dive) for detailed topology and security diagrams.
+See [Architecture Diagrams](docs/architecture-diagrams.md) for detailed topology, security architecture, and request flow diagrams.
 
 ---
 
@@ -476,6 +476,7 @@ Demo-Space2Study/
 
 | Document | Purpose |
 |----------|---------|
+| **[Architecture Diagrams](docs/architecture-diagrams.md)** | ASCII art diagrams: AWS topology, security architecture, request flow |
 | **[Deployment Guide](docs/deployment-guide.md)** | Step-by-step setup instructions for dev and prod |
 | **[Multi-Environment Strategy](docs/multi-environment-strategy.md)** | Dev vs prod architecture and configuration differences |
 | **[Security Architecture](docs/security-architecture.md)** | Threat model, security controls, compliance considerations |
